@@ -9,12 +9,7 @@ if (POLICY CMP0141)
   set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<IF:$<AND:$<C_COMPILER_ID:MSVC>,$<CXX_COMPILER_ID:MSVC>>,$<$<CONFIG:Debug,RelWithDebInfo>:EditAndContinue>,$<$<CONFIG:Debug,RelWithDebInfo>:ProgramDatabase>>")
 endif()
 
-#set(LINALG_ENABLE_BLAS OFF)
-#set(LINALG_ENABLE_CONCEPTS On)
-#set(LINALG_CXX_STANDARD 20)
-#set(LINALG_ENABLE_KOKKOS OFF)
-
-
+set(LINALG_CXX_STANDARD 20)
 include(FetchContent)
 
 FetchContent_Declare(
@@ -37,7 +32,8 @@ endforeach()
 
 project ("ml-linalg")
 if(UNIX)
-	set(STDBLAS_include "${stdblas_BUILD_DIR}/include")
+	set(STDBLAS_include "${stdblas_BINARY_DIR}/include/experimental")
+	set(STDBLAS_include2 "${stdblas_SOURCE_DIR}/include")
 	set(MDSPAN_include "${mdspan_SOURCE_DIR}/include")
 endif(UNIX)
 if(WIN32)

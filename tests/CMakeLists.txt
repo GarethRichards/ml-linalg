@@ -33,6 +33,7 @@ add_test(NAME Test COMMAND Neural_Tester)
 
 target_include_directories(Neural_Tester PRIVATE "../include")
 target_include_directories(Neural_Tester PRIVATE ${STDBLAS_include})
+target_include_directories(Neural_Tester PRIVATE ${STDBLAS_include2})
 target_include_directories(Neural_Tester PRIVATE ${MDSPAN_include})
 
 add_custom_command(TARGET Neural_Tester PRE_BUILD
