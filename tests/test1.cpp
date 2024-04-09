@@ -25,10 +25,12 @@ using NeuralNet1 = NeuralNet::Network<float, NeuralNet::CrossEntropyCost<float>,
 using NeuralNet2 = NeuralNet::Network<float, NeuralNet::CrossEntropyCost<float>, NeuralNet::SigmoidActivation<float>>;
 using NeuralNet3 = NeuralNet::Network<float, NeuralNet::CrossEntropyCost<float>, NeuralNet::TanhActivation<float>>;
 using NeuralNet4 = NeuralNet::Network<float, NeuralNet::QuadraticCost<float, NeuralNet::ReLUActivation<float>>, NeuralNet::ReLUActivation<float>>;
-using NeuralNet5 = NeuralNet::Network<float, NeuralNet::QuadraticCost<float, NeuralNet::ReLUActivation<float>>, NeuralNet::ReLUActivation<float>>;
+using NeuralNet5 = NeuralNet::Network<float, NeuralNet::QuadraticCost<float, NeuralNet::SigmoidActivation<float>>, NeuralNet::SigmoidActivation<float>>;
 using NeuralNet6 = NeuralNet::Network<float, NeuralNet::QuadraticCost<float, NeuralNet::TanhActivation<float>>, NeuralNet::TanhActivation<float>>;
 
-using NetData = std::vector<NeuralNet1::TrainingData>;
+using NeuralNetBase = NeuralNet::Network_interface<float>;
+
+using NetData = std::vector<NeuralNet::Network_interface<float>::TrainingData>;
 using NetDataMem = std::vector<std::pair<std::vector<float>, std::vector<float>>>;
 NetData td;
 NetData testData;
@@ -59,7 +61,7 @@ namespace NeuralTest
         }
     }
 
-    bool IsSame(const NeuralNet1& net, int test_case)
+    bool IsSame(const NeuralNetBase& net, int test_case)
     {
         std::vector<float> res(10);
         mdspan<float, std::dextents<size_t, 2>> nres(res.data(), (size_t)res.size(), 1);
@@ -69,21 +71,10 @@ namespace NeuralTest
         return x == y;
     }
 
-    void LoadFromFile(NeuralNet1& net, std::filesystem::path fileName)
-    {
-        std::fstream f(fileName, std::ios::binary | std::ios::in);
-        if (!f.is_open()) {
-            std::cout << "failed to open " << fileName << "\n";
-            return;
-        }
-        else {
-            f >> net;
-        }
-    }
-
     TEST(ReLUActivationCrossEntropyCost, TestFeedForward) {
         NeuralNet1 net;
-        LoadFromFile(net, data_path / path("data") / path("net-save.txt"));
+        std::fstream f(data_path / path("data") / path("net-save.txt"), std::ios::binary | std::ios::in);
+        f >> net;
 
         int test_case = 0;
         EXPECT_TRUE(IsSame(net, 0));
@@ -97,11 +88,19 @@ namespace NeuralTest
             [](const NeuralNet1& network, int Epoch, float& currenctEta) {
                 // eta can be manipulated in the feed back function
             });
-
-        auto accuracy = net.accuracy(testData.begin(), testData.begin() + 100);
-        //std::cout << accuracy << "\n";
-        // anything > 0 is ok
+        auto cost = net.total_cost(td.begin(), td.begin() + 100, Lmbda);
+        auto accuracy = net.accuracy(td.begin(), td.begin() + 100);
+        std::cout << accuracy << "," << cost << "\n";
         EXPECT_TRUE(accuracy > 1);
+    }
+
+    TEST(SigmoidActivationCrossEntropyCost, TestFeedForward) {
+        NeuralNet2 net;
+        std::fstream f(data_path / path("data") / path("net-save-Sig-CEC.txt"), std::ios::binary | std::ios::in);
+        f >> net;
+
+        int test_case = 0;
+        EXPECT_TRUE(IsSame(net, 0));
     }
 
     TEST(SigmoidActivationCrossEntropyCost, TestTraining) {
@@ -113,10 +112,19 @@ namespace NeuralTest
                 // eta can be manipulated in the feed back function
             });
 
-        auto accuracy = net.accuracy(testData.begin(), testData.begin() + 100);
-        //std::cout << accuracy << "\n";
-        // Anything > 0
+        auto cost = net.total_cost(td.begin(), td.begin() + 100, Lmbda);
+        auto accuracy = net.accuracy(td.begin(), td.begin() + 100);
+        std::cout << accuracy << "," << cost << "\n";
         EXPECT_TRUE(accuracy > 1);
+    }
+
+    TEST(TanhActivationCrossEntropyCost, TestFeedForward) {
+        NeuralNet3 net;
+        std::fstream f(data_path / path("data") / path("net-save-Tanh-CEC.txt"), std::ios::binary | std::ios::in);
+        f >> net;
+
+        int test_case = 0;
+        EXPECT_TRUE(IsSame(net, 0));
     }
 
     TEST(TanhActivationCrossEntropyCost, TestTraining) {
@@ -127,11 +135,19 @@ namespace NeuralTest
             [](const NeuralNet3& network, int Epoch, float& currenctEta) {
                 // eta can be manipulated in the feed back function
             });
-
-        auto accuracy = net.accuracy(testData.begin(), testData.begin() + 100);
-        //std::cout << accuracy << "\n";
-        // Anything > 0
+        auto cost = net.total_cost(td.begin(), td.begin() + 100, Lmbda);
+        auto accuracy = net.accuracy(td.begin(), td.begin() + 100);
+        std::cout << accuracy << "," << cost << "\n";
         EXPECT_TRUE(accuracy > 1);
+    }
+
+    TEST(ReLUActivationQuadraticCost, TestFeedForward) {
+        NeuralNet4 net;
+        std::fstream f(data_path / path("data") / path("net-save-RU-QC.txt"), std::ios::binary | std::ios::in);
+        f >> net;
+
+        int test_case = 0;
+        EXPECT_TRUE(IsSame(net, 0));
     }
 
     TEST(ReLUActivationQuadraticCost, TestTraining) {
@@ -142,11 +158,19 @@ namespace NeuralTest
             [](const NeuralNet4& network, int Epoch, float& currenctEta) {
                 // eta can be manipulated in the feed back function
             });
-
-        auto accuracy = net.accuracy(testData.begin(), testData.begin() + 100);
-        //std::cout << accuracy << "\n";
-        // anything > 0 is ok
+        auto cost = net.total_cost(td.begin(), td.begin() + 100, Lmbda);
+        auto accuracy = net.accuracy(td.begin(), td.begin() + 100);
+        std::cout << accuracy << "," << cost << "\n";
         EXPECT_TRUE(accuracy > 1);
+    }
+
+    TEST(SigmoidActivationQuadraticCost, TestFeedForward) {
+        NeuralNet5 net;
+        std::fstream f(data_path / path("data") / path("net-save-Sig-QC.txt"), std::ios::binary | std::ios::in);
+        f >> net;
+
+        int test_case = 0;
+        EXPECT_TRUE(IsSame(net, 0));
     }
 
     TEST(SigmoidActivationQuadraticCost, TestTraining) {
@@ -157,11 +181,19 @@ namespace NeuralTest
             [](const NeuralNet5& network, int Epoch, float& currenctEta) {
                 // eta can be manipulated in the feed back function
             });
-
-        auto accuracy = net.accuracy(testData.begin(), testData.begin() + 100);
-        //std::cout << accuracy << "\n";
-        // Anything > 0
+        auto cost = net.total_cost(td.begin(), td.begin() + 100, Lmbda);
+        auto accuracy = net.accuracy(td.begin(), td.begin() + 100);
+        std::cout << accuracy << "," << cost << "\n";
         EXPECT_TRUE(accuracy > 1);
+    }
+
+    TEST(TanhActivationQuadraticCost, TestFeedForward) {
+        NeuralNet6 net;
+        std::fstream f(data_path / path("data") / path("net-save-Tanh-QC.txt"), std::ios::binary | std::ios::in);
+        f >> net;
+
+        int test_case = 0;
+        EXPECT_TRUE(IsSame(net, 0));
     }
 
     TEST(TanhActivationQuadraticCost, TestTraining) {
@@ -172,16 +204,16 @@ namespace NeuralTest
             [](const NeuralNet6& network, int Epoch, float& currenctEta) {
                 // eta can be manipulated in the feed back function
             });
-
-        auto accuracy = net.accuracy(testData.begin(), testData.begin() + 100);
-        //std::cout << accuracy << "\n";
-        // Anything > 0
+        auto cost = net.total_cost(td.begin(), td.begin() + 100, Lmbda);
+        auto accuracy = net.accuracy(td.begin(), td.begin() + 100);
+        std::cout << accuracy << "," << cost << "\n";
         EXPECT_TRUE(accuracy > 1);
     }
 
     TEST(NeuralNet, TestAssignements) {
         NeuralNet1 net;
-        LoadFromFile(net, data_path / path("data") / path("net-save.txt"));
+        std::fstream f(data_path / path("data") / path("net-save.txt"), std::ios::binary | std::ios::in);
+        f >> net;
         // test assigments
 
         EXPECT_TRUE(IsSame(net, 0));

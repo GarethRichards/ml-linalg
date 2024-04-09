@@ -24,7 +24,7 @@
 using namespace NeuralNet;
 using namespace std::filesystem;
 using NeuralNet1 = NeuralNet::Network<float, NeuralNet::CrossEntropyCost<float>, NeuralNet::ReLUActivation<float>>;
-using NetData = std::vector<NeuralNet1::TrainingData>;
+using NetData = std::vector<NeuralNet::Network_interface<float>::TrainingData>;
 using NetDataMem = std::vector<std::pair<std::vector<float>, std::vector<float>>>;
 
 void test_net(const NeuralNet1 &net, const NetData &testData, int test_case);
@@ -68,7 +68,7 @@ int main() {
             std::cout << "Cost Training: " << network.total_cost(td.begin(), td.end(), Lmbda) << "\n";
             std::cout << "Cost Test    : " << network.total_cost(testData.begin(), testData.end(), Lmbda)
                     << std::endl;
-    currenctEta *= .95f;
+            //currenctEta *= .95f;
             periodStart = std::chrono::high_resolution_clock::now();
     });
     auto end = std::chrono::high_resolution_clock::now();

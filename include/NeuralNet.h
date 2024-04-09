@@ -101,21 +101,27 @@ namespace NeuralNet {
 	class QuadraticCost {
 		using nvec = mdspan<T, std::dextents<size_t, 2>>;
 	public:
-		static T cost_fn(nvec& a, const nvec& y) {
-			return 0.5 * pow(linalg::vector_norm2(std::execution::par, a - y));
+		static T cost_fn(const nvec& a, const nvec& y) {
+			std::vector<T> y_data(y.extent(0));
+			nvec yp(y_data.data(), y.extent(0), 1);
+			linalg::copy(std::execution::par, y, yp);
+			linalg::scale(std::execution::par, -1.0, yp);
+			linalg::add(std::execution::par, a, yp, yp);
+			mdspan yp_v(y_data.data(), y.extent(0));
+			return 0.5 * pow(linalg::vector_norm2(std::execution::par, yp_v), 2);
 		}
 		static void cost_delta(const nvec& z, const nvec& a, const nvec& y, nvec& result) {
 			std::vector<T> zp_data(z.extent(0));
 			nvec zp(zp_data.data(), y.extent(0), 1);
-			linalg::add(std::execution::par, z, zp, zp);
+			linalg::copy(std::execution::par, z, zp);
 			A::ActivationPrime(zp);
 			std::vector<T> sy_data(y.extent(0));
 			nvec sy(sy_data.data(), y.extent(0), 1);
-			for (int i = 0; i < y.extent(0); ++i)
-				sy(i, 0) = y(i, 0) * -1.0;
+			linalg::copy(std::execution::par, y, sy);
+			linalg::scale(std::execution::par, -1.0, sy);
 			linalg::add(std::execution::par, a, sy, sy);
-			//linalg::dot(sy, zp, result);
-			linalg::matrix_product(std::execution::par, zp, sy, result);
+			for (int i = 0; i < y.extent(0); ++i)
+				result(i, 0) = sy(i, 0) * zp(i, 0);
 		}
 	};
 
@@ -154,20 +160,46 @@ namespace NeuralNet {
 		}
 	};
 
+	template <typename T>
+		requires std::floating_point<T>
+	class Network_interface
+	{
+	public:
+		using nvec = mdspan<T, std::dextents<size_t, 2>>;
+		using nmatrix = std::mdspan<T, std::dextents<size_t, 2>>;
+		using TrainingData = std::pair<nvec, nvec>;
+		using TrainingDataIterator = typename std::vector<TrainingData>::iterator;
+
+		virtual void feedforward(nvec in_vec, nvec result) const = 0;
+		virtual int accuracy(TrainingDataIterator td_begin, TrainingDataIterator td_end) const = 0;
+		virtual T total_cost(TrainingDataIterator td_begin, TrainingDataIterator td_end, T lmbda) const = 0;
+		static int result(const nvec& res) {
+			T maxR = res(0, 0);
+			int v = 0;
+			for (int i = 1; i < res.extent(0); ++i)
+			{
+				if (res(i, 0) > maxR) {
+					v = i;
+					maxR = res(i, 0);
+				}
+			}
+			return v;
+		}
+	};
+
 	template <typename T, typename CostPolicy, typename ActivationPolicy>
 		requires std::floating_point<T>
-	class Network : private CostPolicy, private ActivationPolicy {
+	class Network : public Network_interface<T>, private CostPolicy, private ActivationPolicy {
 	private:
 		using nvec = mdspan<T, std::dextents<size_t, 2>>;
 		using nmatrix = std::mdspan<T, std::dextents<size_t, 2>>;
+		using TrainingData = std::pair<nvec, nvec>;
+		using TrainingDataIterator = typename std::vector<TrainingData>::iterator;
 		using BiasesVector = std::vector<nvec>;
 		using WeightsVector = std::vector<nmatrix>;
-		//using WeightsVector = std::vector<ublas::matrix<T>>;
 
 	public:
 		// Type definition of the Training data
-		using TrainingData = std::pair<nvec, nvec>;
-		using TrainingDataIterator = typename std::vector<TrainingData>::iterator;
 		using TrainingDataVector = std::vector<TrainingData>;
 
 	protected:
@@ -323,7 +355,7 @@ namespace NeuralNet {
 		// Initalize the array of Biases and Matrix of weights
 
 		// Returns the output of the network if the input is a
-		void feedforward(nvec in_vec, nvec result) const {
+		void feedforward(nvec in_vec, nvec result) const override {
 			std::vector<T> res_data(nd.tot_vec_size);
 			size_t start_index = nd.m_sizes[0];
 			size_t prev_index = 0;
@@ -362,6 +394,72 @@ namespace NeuralNet {
 				feedback(*this, j, eta);
 			}
 		}
+
+		// Return the vector of partial derivatives \partial C_x /
+		//	\partial a for the output activations.
+		int accuracy(TrainingDataIterator td_begin, TrainingDataIterator td_end) const override {
+			return count_if(std::execution::par, td_begin, td_end, [this](const TrainingData& testElement) {
+				const auto& [x, y] = testElement; // test data x, expected result y
+				std::vector<T> res(nd.m_sizes[nd.m_sizes.size() - 1]);
+				nvec nres(res.data(), (size_t)res.size(), 1);
+				feedforward(x, nres);
+				return Network_interface<T>::result(nres) == Network_interface<T>::result(y);
+				});
+		}
+		// Return the total cost for the data set ``data``.
+
+		T total_cost(TrainingDataIterator td_begin, TrainingDataIterator td_end, T lmbda) const override {
+			auto count = static_cast<T>(std::distance(td_begin, td_end));
+			T cost(0);
+			cost = std::transform_reduce(std::execution::par, td_begin, td_end, cost, std::plus<>(), [this](const TrainingData& td) {
+				const auto& [testData, expectedResult] = td;
+				std::vector<T> res(nd.m_sizes[nd.m_sizes.size() - 1]);
+				nvec nres(res.data(), (size_t)res.size(), 1);
+				feedforward(testData, nres);
+				return this->cost_fn(nres, expectedResult);
+				});
+
+			cost /= count;
+			constexpr T zero = 0.0;
+			constexpr T half = 0.5;
+			constexpr T two = 2;
+			T reg = std::accumulate(nd.weights.begin(), nd.weights.end(), zero,
+				[lmbda, count](T regC, const nmatrix& w) {
+					return regC + half * (lmbda * pow(linalg::matrix_frob_norm(w), two)) / count;
+				});
+			return cost;// +reg;
+		}
+
+		friend std::ostream& operator<<(std::ostream& os, const Network& net) {
+			os << net.nd.m_sizes.size() << " ";
+			std::ranges::for_each(net.nd.m_sizes, [&](size_t x) { os << x << " "; });
+			std::ranges::for_each(net.nd.biases_data, [&](T y) { os << y << " "; });
+			std::ranges::for_each(net.nd.weights_data, [&](T y) { os << y << " "; });
+			return os;
+		}
+
+		friend std::istream& operator>>(std::istream& is, Network& obj) {
+			int netSize;
+			is >> netSize;
+			for (int i = 0; i < netSize; ++i) {
+				int size;
+				is >> size;
+				obj.nd.m_sizes.push_back(size);
+			}
+			obj.nd.PopulateZeroWeightsAndBiases();
+			T a;
+			for (auto x = 0; x < obj.nd.biases_data.size(); ++x) {
+				is >> a;
+				obj.nd.biases_data[x] = a;
+			}
+			for (auto x = 0; x < obj.nd.weights_data.size(); ++x) {
+				is >> a;
+				obj.nd.weights_data[x] = a;
+			}
+			return is;
+		}
+
+	private:
 		// Update the network's weights and biases by applying
 		//	gradient descent using backpropagation to a single mini batch.
 		//	The "mini_batch" is a list of tuples "(x, y)", and "eta"
@@ -442,81 +540,6 @@ namespace NeuralNet {
 				}
 				linalg::matrix_product(std::execution::par, *ib, linalg::transposed(*iActivations), *iw);
 			}
-		}
-		static auto result(const nvec& res) {
-			T maxR = res(0, 0);
-			int v = 0;
-			for (int i = 1; i < res.extent(0); ++i)
-			{
-				if (res(i, 0) > maxR) {
-					v = i;
-					maxR = res(i, 0);
-				}
-			}
-			return v;
-		}
-		// Return the vector of partial derivatives \partial C_x /
-		//	\partial a for the output activations.
-		auto accuracy(TrainingDataIterator td_begin, TrainingDataIterator td_end) const {
-			return count_if(std::execution::par, td_begin, td_end, [this](const TrainingData& testElement) {
-				const auto& [x, y] = testElement; // test data x, expected result y
-				std::vector<T> res(nd.m_sizes[nd.m_sizes.size() - 1]);
-				nvec nres(res.data(), (size_t)res.size(), 1);
-				feedforward(x, nres);
-				return result(nres) == result(y);
-				});
-		}
-		// Return the total cost for the data set ``data``.
-
-		T total_cost(TrainingDataIterator td_begin, TrainingDataIterator td_end, T lmbda) const {
-			auto count = static_cast<T>(std::distance(td_begin, td_end));
-			T cost(0);
-			cost = std::transform_reduce(std::execution::par, td_begin, td_end, cost, std::plus<>(), [this](const TrainingData& td) {
-				const auto& [testData, expectedResult] = td;
-				std::vector<T> res(nd.m_sizes[nd.m_sizes.size() - 1]);
-				nvec nres(res.data(), (size_t)res.size(), 1);
-				feedforward(testData, nres);
-				return this->cost_fn(nres, expectedResult);
-				});
-
-			cost /= count;
-			constexpr T zero = 0.0;
-			constexpr T half = 0.5;
-			constexpr T two = 2;
-			T reg = std::accumulate(nd.weights.begin(), nd.weights.end(), zero,
-				[lmbda, count](T regC, const nmatrix& w) {
-					return regC + half * (lmbda * pow(linalg::matrix_frob_norm(w), two)) / count;
-				});
-			return cost;// +reg;
-		}
-
-		friend std::ostream& operator<<(std::ostream& os, const Network& net) {
-			os << net.nd.m_sizes.size() << " ";
-			std::ranges::for_each(net.nd.m_sizes, [&](size_t x) { os << x << " "; });
-			std::ranges::for_each(net.nd.biases_data, [&](T y) { os << y << " "; });
-			std::ranges::for_each(net.nd.weights_data, [&](T y) { os << y << " "; });
-			return os;
-		}
-
-		friend std::istream& operator>>(std::istream& is, Network& obj) {
-			int netSize;
-			is >> netSize;
-			for (int i = 0; i < netSize; ++i) {
-				int size;
-				is >> size;
-				obj.nd.m_sizes.push_back(size);
-			}
-			obj.nd.PopulateZeroWeightsAndBiases();
-			T a;
-			for (auto x = 0; x < obj.nd.biases_data.size(); ++x) {
-				is >> a;
-				obj.nd.biases_data[x] = a;
-			}
-			for (auto x = 0; x < obj.nd.weights_data.size(); ++x) {
-				is >> a;
-				obj.nd.weights_data[x] = a;
-			}
-			return is;
 		}
 	};
 

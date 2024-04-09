@@ -10,7 +10,6 @@ set_property(TARGET NeuralNet PROPERTY CXX_STANDARD 20)
 
 target_include_directories(NeuralNet PRIVATE "../include")
 target_include_directories(NeuralNet PRIVATE ${MDSPAN_include})
-target_include_directories(NeuralNet PRIVATE ${STDBLAS_include})
 
 add_custom_command(TARGET NeuralNet PRE_BUILD
                    COMMAND ${CMAKE_COMMAND} -E copy_directory

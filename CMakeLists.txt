@@ -10,6 +10,12 @@ if (POLICY CMP0141)
 endif()
 
 include(FetchContent)
+FetchContent_Declare(
+  stdBLAS
+  GIT_REPOSITORY https://github.com/kokkos/stdBLAS.git
+  GIT_TAG        main
+)
+FetchContent_MakeAvailable(stdBLAS)
 
 #FetchContent_Declare(
 #  mdspan
@@ -36,8 +42,7 @@ include(FetchContent)
 
 project ("ml-linalg")
 if(UNIX)
-	set(MDSPAN_include "~/code/mdspan-stable/include/")
-	set(STDBLAS_include "~/code/stdBLAS-main/include/")
+	set(MDSPAN_include "~/code/mdspan-stable/include/")	
 endif(UNIX)
 if(WIN32)
 	set(MDSPAN_include "C:/Users/garet/source/mdspan-stable/include")
