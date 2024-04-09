@@ -9,6 +9,10 @@ if (POLICY CMP0141)
   set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<IF:$<AND:$<C_COMPILER_ID:MSVC>,$<CXX_COMPILER_ID:MSVC>>,$<$<CONFIG:Debug,RelWithDebInfo>:EditAndContinue>,$<$<CONFIG:Debug,RelWithDebInfo>:ProgramDatabase>>")
 endif()
 
+set(LINALG_ENABLE_BLAS On)
+set(LINALG_ENABLE_CONCEPTS On)
+set(LINALG_CXX_STANDARD 20)
+
 include(FetchContent)
 FetchContent_Declare(
   stdBLAS
@@ -17,32 +21,23 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(stdBLAS)
 
-#FetchContent_Declare(
-#  mdspan
-#  GIT_REPOSITORY https://github.com/kokkos/mdspan.git
-#  GIT_TAG        stable
-#)
-#FetchContent_MakeAvailable(mdspan)
+FetchContent_Declare(
+  mdspan
+  GIT_REPOSITORY https://github.com/kokkos/mdspan.git
+  GIT_TAG        stable
+)
+FetchContent_MakeAvailable(mdspan)
 
-#find_package(mdspan QUIET)
-#if (NOT mdspan_FOUND)
-#  message(STATUS "No installed mdspan found, fetching from Github")
-#  include(FetchContent)
-#  FetchContent_Declare(
-#    mdspan
-#    GIT_REPOSITORY https://github.com/kokkos/mdspan.git
-#    GIT_TAG        stable
-#  )
-#  FetchContent_GetProperties(mdspan)
-#  if(NOT mdspan_POPULATED)
-#    FetchContent_Populate(mdspan)
-#    add_subdirectory(${mdspan_SOURCE_DIR} ${mdspan_BINARY_DIR} EXCLUDE_FROM_ALL)
-#  endif()
-#endif()
+get_cmake_property(_variableNames VARIABLES)
+list (SORT _variableNames)
+foreach (_variableName ${_variableNames})
+message(STATUS "${_variableName}=${${_variableName}}")
+endforeach()
 
 project ("ml-linalg")
 if(UNIX)
-	set(MDSPAN_include "~/code/mdspan-stable/include/")	
+	set(STDBLAS_include "${stdblas_SOURCE_DIR}/include")
+	set(MDSPAN_include "${mdspan_SOURCE_DIR}/include")
 endif(UNIX)
 if(WIN32)
 	set(MDSPAN_include "C:/Users/garet/source/mdspan-stable/include")
