@@ -64,6 +64,7 @@ add_custom_command(TARGET Neural_Tester PRE_BUILD
                    COMMAND ${CMAKE_COMMAND} -E copy_directory
                    ${CMAKE_SOURCE_DIR}/data $<TARGET_FILE_DIR:Neural_Tester>/../data)
 
-add_test(Neural_Tester Neural_Tester)
 
-# TODO: Add tests and install targets if needed.
+include(GoogleTest)
+gtest_discover_tests(Neural_Tester)
+# TODO: Add install targets if needed.
