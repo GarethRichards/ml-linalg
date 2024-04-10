@@ -23,5 +23,3 @@ project ("ml-linalg")
 add_subdirectory("example")
 enable_testing()
 add_subdirectory("tests")
-
-enable_testing()

@@ -51,10 +51,10 @@ enable_testing()
 add_executable(Neural_Tester test1.cpp ../include/NeuralNet.h mnist_loader.h)
 target_link_libraries(Neural_Tester GTest::GTest)
 
-add_test(NAME Test COMMAND Neural_Tester)
-	set(STDBLAS_include "${stdblas_BINARY_DIR}/include/experimental")
-	set(STDBLAS_include2 "${stdblas_SOURCE_DIR}/include")
-	set(MDSPAN_include "${mdspan_SOURCE_DIR}/include")
+set(STDBLAS_include "${stdblas_BINARY_DIR}/include/experimental")
+set(STDBLAS_include2 "${stdblas_SOURCE_DIR}/include")
+set(MDSPAN_include "${mdspan_SOURCE_DIR}/include")
+
 target_include_directories(Neural_Tester PRIVATE "../include")
 target_include_directories(Neural_Tester PRIVATE ${STDBLAS_include})
 target_include_directories(Neural_Tester PRIVATE ${STDBLAS_include2})
@@ -64,5 +64,6 @@ add_custom_command(TARGET Neural_Tester PRE_BUILD
                    COMMAND ${CMAKE_COMMAND} -E copy_directory
                    ${CMAKE_SOURCE_DIR}/data $<TARGET_FILE_DIR:Neural_Tester>/../data)
 
+add_test(Neural_Tester Neural_Tester)
 
 # TODO: Add tests and install targets if needed.
