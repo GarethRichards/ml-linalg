@@ -23,9 +23,18 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(stdBLAS)
 
-	set(STDBLAS_include "${stdblas_BINARY_DIR}/include/experimental")
-	set(STDBLAS_include2 "${stdblas_SOURCE_DIR}/include")
-	set(MDSPAN_include "${mdspan_SOURCE_DIR}/include")
+set(STDBLAS_include "${stdblas_BINARY_DIR}/include/experimental")
+set(STDBLAS_include2 "${stdblas_SOURCE_DIR}/include")
+set(MDSPAN_include "${mdspan_SOURCE_DIR}/include")
+
+if (UNIX)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
+endif (UNIX)
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++ -std=c++20")
+endif()
+
 add_executable(NeuralNet ${sources})
 set_property(TARGET NeuralNet PROPERTY CXX_STANDARD 20)
 

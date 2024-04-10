@@ -12,7 +12,7 @@
 // ported to C++
 //
 // Uses the experimental/linalg extension for linear algebra operations
-#undef LINALG_ENABLE_KOKKOS
+
 #include "NeuralNet.h"
 #include "mnist_loader.h"
 #include <chrono>

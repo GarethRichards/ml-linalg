@@ -17,23 +17,11 @@ message(STATUS "${_variableName}=${${_variableName}}")
 endforeach()
 
 project ("ml-linalg")
-if(UNIX)
-	set(STDBLAS_include "${stdblas_BINARY_DIR}/include/experimental")
-	set(STDBLAS_include2 "${stdblas_SOURCE_DIR}/include")
-	set(MDSPAN_include "${mdspan_SOURCE_DIR}/include")
-endif(UNIX)
-if(WIN32)
-	#set(STDBLAS_include "${stdblas_BINARY_DIR}/include/experimental")
-	#set(STDBLAS_include2 "${stdblas_SOURCE_DIR}/include")
-	#set(MDSPAN_include "${mdspan_SOURCE_DIR}/include")
-	#set(MDSPAN_include "C:/Users/garet/source/mdspan-stable/include")
-	#set(STDBLAS_include "C:/Users/garet/source/stdBLAS-main/include")
-endif(WIN32)
-
 
 # Include sub-projects.
 #add_subdirectory("ml-linalg")
 add_subdirectory("example")
+enable_testing()
 add_subdirectory("tests")
 
 enable_testing()
