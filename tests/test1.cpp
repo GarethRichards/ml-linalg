@@ -64,7 +64,7 @@ namespace NeuralTest
     bool IsSame(const NeuralNetBase& net, int test_case)
     {
         std::vector<float> res(10);
-        mdspan<float, std::dextents<size_t, 2>> nres(res.data(), (size_t)res.size(), 1);
+        mdspan<float, dextents<size_t, 2>> nres(res.data(), (size_t)res.size(), 1);
         net.feedforward(testData[test_case].first, nres);
         auto x = net.result(nres);
         auto y = net.result(testData[test_case].second);

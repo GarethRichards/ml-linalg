@@ -14,6 +14,23 @@ FetchContent_Declare(
   GIT_TAG        release-1.11.0
 )
 FetchContent_MakeAvailable(googletest)
+
+set(LINALG_ENABLE_KOKKOS OFF)
+set(LINALG_ENABLE_CONCEPTS On)
+
+FetchContent_Declare(
+  mdspan
+  GIT_REPOSITORY https://github.com/kokkos/mdspan.git
+  GIT_TAG        stable
+)
+FetchContent_MakeAvailable(mdspan)
+FetchContent_Declare(
+  stdBLAS
+  GIT_REPOSITORY https://github.com/kokkos/stdBLAS.git
+  GIT_TAG        main
+)
+FetchContent_MakeAvailable(stdBLAS)
+
 add_library(GTest::GTest INTERFACE IMPORTED)
 target_link_libraries(GTest::GTest INTERFACE gtest_main)
 
@@ -22,7 +39,8 @@ if (UNIX)
 endif (UNIX)
 
 if (WIN32)
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")  
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd") 
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")  
 endif (WIN32)
 enable_testing()
 
@@ -30,7 +48,9 @@ add_executable(Neural_Tester test1.cpp ../include/NeuralNet.h mnist_loader.h)
 target_link_libraries(Neural_Tester GTest::GTest)
 
 add_test(NAME Test COMMAND Neural_Tester)
-
+	set(STDBLAS_include "${stdblas_BINARY_DIR}/include/experimental")
+	set(STDBLAS_include2 "${stdblas_SOURCE_DIR}/include")
+	set(MDSPAN_include "${mdspan_SOURCE_DIR}/include")
 target_include_directories(Neural_Tester PRIVATE "../include")
 target_include_directories(Neural_Tester PRIVATE ${STDBLAS_include})
 target_include_directories(Neural_Tester PRIVATE ${STDBLAS_include2})

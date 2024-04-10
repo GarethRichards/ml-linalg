@@ -13,8 +13,9 @@
 //		SigmoidActivation
 //		TanhActivation
 //		ReLUActivation
+#define MDSPAN_USE_PAREN_OPERATOR 1
 
-
+#include <mdspan/mdspan.hpp>
 #include <experimental/linalg>
 #include <cmath>
 #include <execution>
@@ -26,10 +27,12 @@
 #include <ranges>
 #include <iostream>
 
-using std::experimental::mdspan;
-using std::experimental::extents;
+namespace MdSpan = MDSPAN_IMPL_STANDARD_NAMESPACE;
+namespace LinearAlgebra = MDSPAN_IMPL_STANDARD_NAMESPACE::MDSPAN_IMPL_PROPOSED_NAMESPACE::linalg;
+using MdSpan::mdspan;
+using MdSpan::extents;
+using MdSpan::dextents;
 
-namespace linalg = std::experimental::linalg;
 
 #if defined(__cpp_lib_span)
 #include <span>
@@ -43,7 +46,7 @@ namespace NeuralNet {
 	// The sigmoid function.
 	template <typename T>
 	class SigmoidActivation {
-		using nvec = mdspan<T, std::dextents<size_t, 2>>;
+		using nvec = mdspan<T, dextents<size_t, 2>>;
 	public:
 		static void Activation(nvec& v) {
 			constexpr T one = 1.0;
@@ -63,7 +66,7 @@ namespace NeuralNet {
 	// The tanh function.
 	template <typename T>
 	class TanhActivation {
-		using nvec = mdspan<T, std::dextents<size_t, 2>>;
+		using nvec = mdspan<T, dextents<size_t, 2>>;
 	public:
 		static void Activation(nvec& v) {
 			constexpr T one = 1.0;
@@ -81,7 +84,7 @@ namespace NeuralNet {
 	// The ReLU function.
 	template <typename T>
 	class ReLUActivation {
-		using nvec = mdspan<T, std::dextents<size_t, 2>>;
+		using nvec = mdspan<T, dextents<size_t, 2>>;
 	public:
 		static void Activation(nvec& v) {
 			constexpr T zero = 0.0;
@@ -99,27 +102,27 @@ namespace NeuralNet {
 
 	template <typename T, typename A>
 	class QuadraticCost {
-		using nvec = mdspan<T, std::dextents<size_t, 2>>;
+		using nvec = mdspan<T, dextents<size_t, 2>>;
 	public:
 		static T cost_fn(const nvec& a, const nvec& y) {
 			std::vector<T> y_data(y.extent(0));
 			nvec yp(y_data.data(), y.extent(0), 1);
-			linalg::copy(std::execution::par, y, yp);
-			linalg::scale(std::execution::par, -1.0, yp);
-			linalg::add(std::execution::par, a, yp, yp);
+			LinearAlgebra::copy(std::execution::par, y, yp);
+			LinearAlgebra::scale(std::execution::par, -1.0, yp);
+			LinearAlgebra::add(std::execution::par, a, yp, yp);
 			mdspan yp_v(y_data.data(), y.extent(0));
-			return 0.5 * pow(linalg::vector_norm2(std::execution::par, yp_v), 2);
+			return 0.5 * pow(LinearAlgebra::vector_norm2(std::execution::par, yp_v), 2);
 		}
 		static void cost_delta(const nvec& z, const nvec& a, const nvec& y, nvec& result) {
 			std::vector<T> zp_data(z.extent(0));
 			nvec zp(zp_data.data(), y.extent(0), 1);
-			linalg::copy(std::execution::par, z, zp);
+			LinearAlgebra::copy(std::execution::par, z, zp);
 			A::ActivationPrime(zp);
 			std::vector<T> sy_data(y.extent(0));
 			nvec sy(sy_data.data(), y.extent(0), 1);
-			linalg::copy(std::execution::par, y, sy);
-			linalg::scale(std::execution::par, -1.0, sy);
-			linalg::add(std::execution::par, a, sy, sy);
+			LinearAlgebra::copy(std::execution::par, y, sy);
+			LinearAlgebra::scale(std::execution::par, -1.0, sy);
+			LinearAlgebra::add(std::execution::par, a, sy, sy);
 			for (int i = 0; i < y.extent(0); ++i)
 				result(i, 0) = sy(i, 0) * zp(i, 0);
 		}
@@ -127,7 +130,7 @@ namespace NeuralNet {
 
 	template <typename T>
 	class CrossEntropyCost {
-		using nvec = mdspan<T, std::dextents<size_t, 2>>;
+		using nvec = mdspan<T, dextents<size_t, 2>>;
 	public:
 		// Return the cost associated with an output ``a`` and desired output
 		// ``y``.  Note that np.nan_to_num is used to ensure numerical
@@ -156,7 +159,7 @@ namespace NeuralNet {
 			constexpr T m_one = -1.0;
 			for (int i = 0; i < y.extent(0); ++i)
 				sy(i, 0) = y(i, 0) * m_one;
-			linalg::add(std::execution::par, a, sy, result);
+			LinearAlgebra::add(std::execution::par, a, sy, result);
 		}
 	};
 
@@ -165,8 +168,8 @@ namespace NeuralNet {
 	class Network_interface
 	{
 	public:
-		using nvec = mdspan<T, std::dextents<size_t, 2>>;
-		using nmatrix = std::mdspan<T, std::dextents<size_t, 2>>;
+		using nvec = mdspan<T, dextents<size_t, 2>>;
+		using nmatrix = mdspan<T, dextents<size_t, 2>>;
 		using TrainingData = std::pair<nvec, nvec>;
 		using TrainingDataIterator = typename std::vector<TrainingData>::iterator;
 
@@ -191,8 +194,8 @@ namespace NeuralNet {
 		requires std::floating_point<T>
 	class Network : public Network_interface<T>, private CostPolicy, private ActivationPolicy {
 	private:
-		using nvec = mdspan<T, std::dextents<size_t, 2>>;
-		using nmatrix = std::mdspan<T, std::dextents<size_t, 2>>;
+		using nvec = mdspan<T, dextents<size_t, 2>>;
+		using nmatrix = mdspan<T, dextents<size_t, 2>>;
 		using TrainingData = std::pair<nvec, nvec>;
 		using TrainingDataIterator = typename std::vector<TrainingData>::iterator;
 		using BiasesVector = std::vector<nvec>;
@@ -317,8 +320,8 @@ namespace NeuralNet {
 			}
 			NetworkData& operator+=(const NetworkData& rhs) {
 				for (auto j = 0; j < biases.size(); ++j) {
-					linalg::add(biases[j], rhs.biases[j], biases[j]);
-					linalg::add(weights[j], rhs.weights[j], weights[j]);
+					LinearAlgebra::add(biases[j], rhs.biases[j], biases[j]);
+					LinearAlgebra::add(weights[j], rhs.weights[j], weights[j]);
 				}
 				return *this;
 			}
@@ -368,8 +371,8 @@ namespace NeuralNet {
 				nvec& res_in = res_ind;
 				if (i == 0)
 					res_in = in_vec;
-				linalg::matrix_product(std::execution::par, nd.weights[i], res_in, res);
-				linalg::add(std::execution::par, res, nd.biases[i], res);
+				LinearAlgebra::matrix_product(std::execution::par, nd.weights[i], res_in, res);
+				LinearAlgebra::add(std::execution::par, res, nd.biases[i], res);
 				this->Activation(res);
 				prev_index = start_index;
 				start_index += nd.m_sizes[i + 1];
@@ -425,7 +428,7 @@ namespace NeuralNet {
 			constexpr T two = 2;
 			T reg = std::accumulate(nd.weights.begin(), nd.weights.end(), zero,
 				[lmbda, count](T regC, const nmatrix& w) {
-					return regC + half * (lmbda * pow(linalg::matrix_frob_norm(w), two)) / count;
+					return regC + half * (lmbda * pow(LinearAlgebra::matrix_frob_norm(w), two)) / count;
 				});
 			return cost;// +reg;
 		}
@@ -482,12 +485,12 @@ namespace NeuralNet {
 				});
 			constexpr T one = 1.0;
 			for (auto i = 0; i < nd.biases.size(); ++i) {
-				linalg::add(nd.biases[i],
-					linalg::scaled(-eta / mini_batch_size, nabla.biases[i]),
+				LinearAlgebra::add(nd.biases[i],
+					LinearAlgebra::scaled(-eta / mini_batch_size, nabla.biases[i]),
 					nd.biases[i]);
 				//nd.biases[i] -= eta / mini_batch_size * nabla.biases[i];
-				linalg::add(linalg::scaled(one - eta * (lmbda / n), nd.weights[i]),
-					linalg::scaled(-eta / mini_batch_size, nabla.weights[i]),
+				LinearAlgebra::add(LinearAlgebra::scaled(one - eta * (lmbda / n), nd.weights[i]),
+					LinearAlgebra::scaled(-eta / mini_batch_size, nabla.weights[i]),
 					nd.weights[i]);
 				//nd.weights[i] = (one - eta * (lmbda / n)) * nd.weights[i] - (eta / mini_batch_size) * nabla.weights[i];
 			}
@@ -504,8 +507,8 @@ namespace NeuralNet {
 			size_t start_index = 0;
 			for (auto i = 0; i < nd.biases.size(); ++i) {
 				nvec z(&zs_data[start_index], nd.m_sizes[i + 1], 1);
-				linalg::matrix_product(std::execution::par, nd.weights[i], activation, z);
-				linalg::add(z, nd.biases[i], z);
+				LinearAlgebra::matrix_product(std::execution::par, nd.weights[i], activation, z);
+				LinearAlgebra::add(z, nd.biases[i], z);
 				zs.push_back(z);
 				std::copy(std::next(zs_data.cbegin(), start_index), std::next(zs_data.cbegin(), start_index + nd.m_sizes[i + 1]),
 					std::next(a_data.begin(), start_index));
@@ -523,7 +526,7 @@ namespace NeuralNet {
 			auto iw = nabla.weights.end() - 1;
 			this->cost_delta(*izs, *iActivations, y, *ib);
 			iActivations--;
-			linalg::matrix_product(std::execution::par, *ib, linalg::transposed(*iActivations), *iw);
+			LinearAlgebra::matrix_product(std::execution::par, *ib, LinearAlgebra::transposed(*iActivations), *iw);
 
 			auto iWeights = nd.weights.end();
 			while (iActivations != activations.begin()) {
@@ -534,11 +537,11 @@ namespace NeuralNet {
 				ib--;
 				iw--;
 				this->ActivationPrime(*izs);
-				linalg::matrix_product(std::execution::par, linalg::transposed(*iWeights), previous_delta, *ib);
+				LinearAlgebra::matrix_product(std::execution::par, LinearAlgebra::transposed(*iWeights), previous_delta, *ib);
 				for (int i = 0; i < (*ib).extent(0); i++) {
 					(*ib)(i, 0) = (*ib)(i, 0) * (*izs)(i, 0);
 				}
-				linalg::matrix_product(std::execution::par, *ib, linalg::transposed(*iActivations), *iw);
+				LinearAlgebra::matrix_product(std::execution::par, *ib, LinearAlgebra::transposed(*iActivations), *iw);
 			}
 		}
 	};

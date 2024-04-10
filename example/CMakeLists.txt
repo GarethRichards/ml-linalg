@@ -6,6 +6,26 @@
 
 file(GLOB sources "NeuralNet3.cpp" "mnist_loader.h" "../include/NeuralNet.h")
 
+set(LINALG_CXX_STANDARD 20)
+set(LINALG_ENABLE_KOKKOS OFF)
+set(LINALG_ENABLE_CONCEPTS On)
+include(FetchContent)
+FetchContent_Declare(
+  mdspan
+  GIT_REPOSITORY https://github.com/kokkos/mdspan.git
+  GIT_TAG        stable
+)
+FetchContent_MakeAvailable(mdspan)
+FetchContent_Declare(
+  stdBLAS
+  GIT_REPOSITORY https://github.com/kokkos/stdBLAS.git
+  GIT_TAG        main
+)
+FetchContent_MakeAvailable(stdBLAS)
+
+	set(STDBLAS_include "${stdblas_BINARY_DIR}/include/experimental")
+	set(STDBLAS_include2 "${stdblas_SOURCE_DIR}/include")
+	set(MDSPAN_include "${mdspan_SOURCE_DIR}/include")
 add_executable(NeuralNet ${sources})
 set_property(TARGET NeuralNet PROPERTY CXX_STANDARD 20)
 

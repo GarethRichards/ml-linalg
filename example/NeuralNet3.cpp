@@ -12,7 +12,7 @@
 // ported to C++
 //
 // Uses the experimental/linalg extension for linear algebra operations
-
+#undef LINALG_ENABLE_KOKKOS
 #include "NeuralNet.h"
 #include "mnist_loader.h"
 #include <chrono>
@@ -20,6 +20,7 @@
 #include <iostream>
 #include <random>
 #include <vector>
+#include <filesystem>
 
 using namespace NeuralNet;
 using namespace std::filesystem;
@@ -107,7 +108,7 @@ int main() {
 
 void test_net(const NeuralNet1 &net, const NetData &testData, int test_case) {
     std::vector<float> res(10);
-    mdspan<float, std::dextents<size_t, 2>> nres(res.data(), (size_t)res.size(), 1);
+    mdspan<float, dextents<size_t, 2>> nres(res.data(), (size_t)res.size(), 1);
 
     net.feedforward(testData[test_case].first, nres);
     auto x = net.result(nres);
