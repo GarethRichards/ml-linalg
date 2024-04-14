@@ -107,9 +107,7 @@ namespace NeuralNet {
 		static T cost_fn(const nvec& a, const nvec& y) {
 			std::vector<T> y_data(y.extent(0));
 			nvec yp(y_data.data(), y.extent(0), 1);
-			LinearAlgebra::copy(std::execution::par, y, yp);
-			LinearAlgebra::scale(std::execution::par, -1.0, yp);
-			LinearAlgebra::add(std::execution::par, a, yp, yp);
+			LinearAlgebra::add(std::execution::par, a, LinearAlgebra::scaled(-1.0, y), yp);
 			mdspan yp_v(y_data.data(), y.extent(0));
 			return 0.5 * pow(LinearAlgebra::vector_norm2(std::execution::par, yp_v), 2);
 		}
@@ -118,13 +116,9 @@ namespace NeuralNet {
 			nvec zp(zp_data.data(), y.extent(0), 1);
 			LinearAlgebra::copy(std::execution::par, z, zp);
 			A::ActivationPrime(zp);
-			std::vector<T> sy_data(y.extent(0));
-			nvec sy(sy_data.data(), y.extent(0), 1);
-			LinearAlgebra::copy(std::execution::par, y, sy);
-			LinearAlgebra::scale(std::execution::par, -1.0, sy);
-			LinearAlgebra::add(std::execution::par, a, sy, sy);
+			LinearAlgebra::add(std::execution::par, a, LinearAlgebra::scaled(-1.0, y), result);
 			for (int i = 0; i < y.extent(0); ++i)
-				result(i, 0) = sy(i, 0) * zp(i, 0);
+				result(i, 0) = result(i, 0) * zp(i, 0);
 		}
 	};
 
@@ -341,7 +335,7 @@ namespace NeuralNet {
 				for (int i = 0; i < vec.extent(0); ++i)
 					vec(i, 0) = d(gen);
 			}
-			// Randomize as ublas matrix
+			// Randomize matrix
 			void RandomizeMatrix(nmatrix& m) {
 				std::normal_distribution<T> d(0, 1);
 				T sx = sqrt(static_cast<T>(m.extent(1)));
@@ -357,7 +351,7 @@ namespace NeuralNet {
 		explicit Network(const std::vector<size_t>& sizes) : nd(sizes) { nd.Randomize(); }
 		// Initalize the array of Biases and Matrix of weights
 
-		// Returns the output of the network if the input is a
+		// Returns the output of the network if the input is in_vec
 		void feedforward(nvec in_vec, nvec result) const override {
 			std::vector<T> res_data(nd.tot_vec_size);
 			size_t start_index = nd.m_sizes[0];
