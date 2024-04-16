@@ -1,36 +1,36 @@
 # C++26: Basic linear algebra algorithms applied to Machine learning.
 
-[P1673](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2023/p1673r13.html) proposes a C++ Standard Library dense linear algebra interface based on the Basic Linear Algebra Subroutines (BLAS). This repo uses the reference implementation  from kokkos [stdBLAS](https://github.com/kokkos/stdBLAS) to create an implementation of the basic Neural Network backpropagation learning algorithm. The code is an evolved version of the code in the [Machine-Learning-CPP](https://github.com/GarethRichards/Machine-Learning-CPP) repo.
+[P1673](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2023/p1673r13.html) proposes a C++ Standard Library dense linear algebra interface based on the Basic Linear Algebra Subroutines (BLAS). This repo uses the reference implementation from [kokkos](https://github.com/kokkos) [stdBLAS](https://github.com/kokkos/stdBLAS) to create an implementation of the basic Neural Network backpropagation learning algorithm. The code is an evolved version of the code in the [Machine-Learning-CPP](https://github.com/GarethRichards/Machine-Learning-CPP) repo.
 
 ## Differences between [boost ublas](https://www.boost.org/doc/libs/1_81_0/libs/numeric/ublas/doc/index.html) and [std::linalg](https://en.cppreference.com/w/cpp/numeric/linalg)
 
-Boost defines some basic container classes `vector` and `matrix`. These classes own the memory which the objects use. The corresponding class in the `std::linalg` world is `std::mdspan`. `mdspan` acts a view over a block of memory.
+Boost defines some basic container classes `ublas::vector` and `ublas::matrix`. These classes own the memory which the objects use. The corresponding class in the `std::linalg` world is `std::mdspan`. `mdspan` acts a view over a block of memory.
 
 The types and constructors are detailed in the table below.
-| boost ublas    | mdspan type                      | mdspan constructor   |
-| -----------    | -------------------------------- | -------------------- |
-| `vector(A)`    | `mdspan<T, dynamic_extent>`      | `(vec.data(), A)`    |
-| `matrix(A, B)` | `mdspan<T, dextents<size_t, 2>>` | `(vec.data(), A, B)` |
+| boost ublas           | mdspan type                      | mdspan constructor   |
+| -----------           | -------------------------------- | -------------------- |
+| `ublas::vector(A)`    | `mdspan<T, dynamic_extent>`      | `(vec.data(), A)`    |
+| `ublas::matrix(A, B)` | `mdspan<T, dextents<size_t, 2>>` | `(vec.data(), A, B)` |
 
 And the basic usage is as follows.
 ``` cpp
-    std::vector<double> x_vec(A);
+    std::vector<float> x_vec(A);
     mdspan x(x_vec.data(), A);
 
-    std::vector<double> mat_vec(A * B);
-    mdspan mat(x_vec.data(), A, B);   
+    std::vector<float> mat_vec(A * B);
+    mdspan mat(mat_vec.data(), A, B);   
 ```
 `mdspan` has a number of other tricks - it controls the exact mapping of the array coordinates to the underlying memory. Thus, operations such as transpose just return a `mdspan` pointing at the same memory as the original one.
 ``` cpp
-    std::vector<double> mat_vec(A * B);
+    std::vector<float> mat_vec(A * B);
     mdspan mat(x_vec.data(), A, B);  
     auto trans_mat = LinearAlgebra::transposed(mat);
+    std::cout << mat.extent(0) << "," << mat.extent(1) << std::endl;
     std::cout << tras_mat.extent(0) << "," << tras_mat.extent(1) << std::endl;
-    // prints B,A
 ``` 
 In the above example `mat` and `trans_mat` point to the same piece of memory owner by `mat_vec`.
 
-## Basic operations
+### Basic operations
 
 The `boost::ublas` version of the Quadratic cost function is as follows.
 ``` cpp
@@ -64,7 +64,57 @@ static T cost_fn(const nvec& a, const nvec& y) {
     return 0.5 * pow(LinearAlgebra::vector_norm2(std::execution::par, yp_v), 2);
     }
 ```
-## Feed Forward operation.
+### Memory layout
+`boost::ublas` stores its memory in vector and matrix classes. Internally the vector and matrix class store the data in a single memory buffer. The code to create the Biases and Weights data structures is shown here: 
+
+``` cpp
+    using BiasesVector = std::vector<ublas::vector<T>>;
+    using WeightsVector = std::vector<ublas::matrix<T>>;
+
+    BiasesVector biases;
+    WeightsVector weights;
+
+    for (auto i = 1; i < m_sizes.size(); ++i) {
+        biases.emplace_back(ublas::zero_vector<T>{m_sizes[i]});
+        weights.emplace_back(ublas::zero_matrix<T>{m_sizes[i], m_sizes[i - 1]});
+    }
+```
+
+Using `mdspan` two objects are required, the `weights_data` and `biases_data` are just `std::vector` objects which store the underlying data and the `weights` and `biases` objects store a list of `mdspan` objects which map the underlying memory into our list of biases and weights. Instead of having a 1 to 1 mapping between `std::vector` objects and `mdspan` views, the code uses a single `std::vector`, `biases_data` to store the all the biases in the neural network. One technicality from this approach is you cannot rely on the generated `move` and `copy` copy constructors, so it is necessary to manually write them.
+
+``` cpp
+    using nvec = mdspan<T, dextents<size_t, 2>>;
+    using nmatrix = mdspan<T, dextents<size_t, 2>>;
+    using BiasesVector = std::vector<nvec>;
+    using WeightsVector = std::vector<nmatrix>;
+
+    std::vector<size_t> m_sizes;
+    size_t max_vec_size = 0;
+    size_t tot_vec_size = 0;
+    BiasesVector biases;
+    std::vector<T> biases_data;
+    WeightsVector weights;
+    std::vector<T> weights_data;
+
+    size_t biases_data_size = 0;
+    size_t weights_data_size = 0;
+    for (auto i = 1; i < m_sizes.size(); ++i) {
+        biases_data_size += m_sizes[i];
+        weights_data_size += m_sizes[i] * m_sizes[i - 1];
+    }
+    biases_data.resize(biases_data_size, 0);
+    weights_data.resize(weights_data_size, 0);
+    biases_data_size = 0;
+    weights_data_size = 0;
+    for (auto i = 1; i < m_sizes.size(); ++i) {
+        biases.push_back(nvec(&biases_data[biases_data_size], m_sizes[i], 1));
+        weights.push_back(nmatrix(&weights_data[weights_data_size], m_sizes[i], m_sizes[i - 1]));
+        biases_data_size += m_sizes[i];
+        weights_data_size += m_sizes[i] * m_sizes[i - 1];
+    }
+```
+
+### Feed Forward operation.
 This operation returns the result of the input vector from a trained network.
 
 ![Neural net image](http://neuralnetworksanddeeplearning.com/images/tikz11.png)
@@ -111,15 +161,18 @@ In the `std::linalg` version of the calculation, we know how much memory we need
         }
     }
 ```
-## Final thoughts
-It's exciting that C++ will soon get a basic linear algebra package out of the box. `std::linalg` package provides the programmer with a variety of execution contexts, memory can be optimised thanks to its integration with the `mspan` class and should a faster BLAS library exist you can switch to using it.
 
-## Further reading
-### Neural Networks
+# Final thoughts
+I hope this brief introduction to `std::linalg` has shown you how to exciting new C++26 features. The `std::linalg` package allows you to perform the calculations on various calculation contexts and using `mspan` memory usage and optimisation is under the control of the programmer.
+
+Personally I'd like to see many more examples of machine learning algorithms implemented using `std::linalg`.
+
+# Further reading
+## Neural Networks
 If you want to learn more about Machine learning I can recommend the following resources
 [Neural Networks and Deep Learning](http://neuralnetworksanddeeplearning.com/index.html) by Michael Nielsen
 [But what is a neural network? | Chapter 1, Deep learning](https://youtu.be/aircAruvnKk?si=50XAeNALzkgLZAps) by 3Blue1Brown
-### BLAS
+## BLAS
 [stdBLAS](https://github.com/kokkos/stdBLAS)
 [std::linalg](https://en.cppreference.com/w/cpp/numeric/linalg) from cpp reference
 [boost:ublas](https://www.boost.org/doc/libs/1_84_0/libs/numeric/ublas/doc/)
