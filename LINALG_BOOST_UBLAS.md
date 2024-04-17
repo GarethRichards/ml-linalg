@@ -163,16 +163,14 @@ In the `std::linalg` version of the calculation, we know how much memory we need
 ```
 
 # Final thoughts
-I hope this brief introduction to `std::linalg` has shown you how to exciting new C++26 features. The `std::linalg` package allows you to perform the calculations on various calculation contexts and using `mspan` memory usage and optimisation is under the control of the programmer.
-
-Personally I'd like to see many more examples of machine learning algorithms implemented using `std::linalg`.
+I hope this brief introduction to `std::linalg` has shown you how to exciting new C++26 features. The `std::linalg` package lets you optionally target different calculation contexts. Integration with `mspan` places memory usage under direct control, BLAS opertions such as transposed and scaled can be achieved without changeing the underlying data but by using one of mdspan's accessors or layouts.
 
 # Further reading
 ## Neural Networks
 If you want to learn more about Machine learning I can recommend the following resources
-[Neural Networks and Deep Learning](http://neuralnetworksanddeeplearning.com/index.html) by Michael Nielsen
-[But what is a neural network? | Chapter 1, Deep learning](https://youtu.be/aircAruvnKk?si=50XAeNALzkgLZAps) by 3Blue1Brown
+* [Neural Networks and Deep Learning](http://neuralnetworksanddeeplearning.com/index.html) by Michael Nielsen
+* [But what is a neural network? | Chapter 1, Deep learning](https://youtu.be/aircAruvnKk?si=50XAeNALzkgLZAps) by 3Blue1Brown
 ## BLAS
-[stdBLAS](https://github.com/kokkos/stdBLAS)
-[std::linalg](https://en.cppreference.com/w/cpp/numeric/linalg) from cpp reference
-[boost:ublas](https://www.boost.org/doc/libs/1_84_0/libs/numeric/ublas/doc/)
+* [stdBLAS](https://github.com/kokkos/stdBLAS)
+* [std::linalg](https://en.cppreference.com/w/cpp/numeric/linalg) from cpp reference
+* [boost:ublas](https://www.boost.org/doc/libs/1_84_0/libs/numeric/ublas/doc/) read FAQ before using,
