@@ -6,7 +6,7 @@
 
 file(GLOB sources "NeuralNet3.cpp" "mnist_loader.h" "../include/NeuralNet.h")
 
-set(LINALG_CXX_STANDARD 20)
+set(LINALG_CXX_STANDARD 23)
 set(LINALG_ENABLE_KOKKOS OFF)
 set(LINALG_ENABLE_CONCEPTS On)
 include(FetchContent)
