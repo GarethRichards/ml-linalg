@@ -109,7 +109,7 @@ namespace NeuralNet {
 			nvec yp(y_data.data(), y.extent(0), 1);
 			LinearAlgebra::add(std::execution::par, a, LinearAlgebra::scaled(-1.0, y), yp);
 			mdspan yp_v(y_data.data(), y.extent(0));
-			return 0.5 * pow(LinearAlgebra::vector_two_norm(std::execution::par, yp_v), 2);
+			return static_cast<T>(0.5) * pow(LinearAlgebra::vector_two_norm(std::execution::par, yp_v), static_cast<T>(2));
 		}
 		static void cost_delta(const nvec& z, const nvec& a, const nvec& y, nvec& result) {
 			std::vector<T> zp_data(z.extent(0));
@@ -168,7 +168,7 @@ namespace NeuralNet {
 		using TrainingDataIterator = typename std::vector<TrainingData>::iterator;
 
 		virtual void feedforward(nvec in_vec, nvec result) const = 0;
-		virtual int accuracy(TrainingDataIterator td_begin, TrainingDataIterator td_end) const = 0;
+		virtual int64_t accuracy(TrainingDataIterator td_begin, TrainingDataIterator td_end) const = 0;
 		virtual T total_cost(TrainingDataIterator td_begin, TrainingDataIterator td_end, T lmbda) const = 0;
 		static int result(const nvec& res) {
 			T maxR = res(0, 0);
@@ -394,7 +394,7 @@ namespace NeuralNet {
 
 		// Return the vector of partial derivatives \partial C_x /
 		//	\partial a for the output activations.
-		int accuracy(TrainingDataIterator td_begin, TrainingDataIterator td_end) const override {
+		int64_t accuracy(TrainingDataIterator td_begin, TrainingDataIterator td_end) const override {
 			return count_if(std::execution::par, td_begin, td_end, [this](const TrainingData& testElement) {
 				const auto& [x, y] = testElement; // test data x, expected result y
 				std::vector<T> res(nd.m_sizes[nd.m_sizes.size() - 1]);
