@@ -109,7 +109,7 @@ namespace NeuralNet {
 			nvec yp(y_data.data(), y.extent(0), 1);
 			LinearAlgebra::add(std::execution::par, a, LinearAlgebra::scaled(-1.0, y), yp);
 			mdspan yp_v(y_data.data(), y.extent(0));
-			return 0.5 * pow(LinearAlgebra::vector_norm2(std::execution::par, yp_v), 2);
+			return 0.5 * pow(LinearAlgebra::vector_two_norm(std::execution::par, yp_v), 2);
 		}
 		static void cost_delta(const nvec& z, const nvec& a, const nvec& y, nvec& result) {
 			std::vector<T> zp_data(z.extent(0));
